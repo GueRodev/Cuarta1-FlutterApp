@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../main.dart'; // Para acceder a registeredUsers
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({Key? key}) : super(key: key);
+  const LoginPage({super.key}); // Usamos super.key
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -13,12 +13,12 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  // Simple validación de email usando expresión regular
+  // Validación básica de email
   String? _validateEmail(String? value) {
     if (value == null || value.isEmpty) {
       return 'Ingresa tu correo electrónico';
     }
-    // Expresión regular muy básica para emails
+    // Expresión regular básica para emails
     final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
     if (!emailRegex.hasMatch(value)) {
       return 'Formato de correo inválido';
@@ -37,14 +37,47 @@ class _LoginPageState extends State<LoginPage> {
     return null;
   }
 
+  /// Muestra una notificación en la esquina superior izquierda
+  /// y la remueve automáticamente después de 3 segundos.
+  OverlayEntry _showNotification(String message) {
+    // Eliminamos el operador ! para evitar la advertencia
+    final overlay = Overlay.of(context);
+
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 40,
+        left: 20,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.black.withAlpha(204), // ~80% de opacidad
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              message,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
+          ),
+        ),
+      ),
+    );
+    overlay.insert(overlayEntry);
+
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) overlayEntry.remove();
+    });
+    return overlayEntry;
+  }
+
   void _login() {
     if (_formKey.currentState!.validate()) {
       final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
 
       // Validamos contra nuestro "mapa" de usuarios registrados
-      if (registeredUsers.containsKey(email) &&
-          registeredUsers[email] == password) {
+      if (registeredUsers.containsKey(email) && registeredUsers[email] == password) {
         // Si coincide, navegamos a la página de bienvenida
         Navigator.pushNamed(
           context,
@@ -52,27 +85,21 @@ class _LoginPageState extends State<LoginPage> {
           arguments: email, // pasamos el email como argumento
         );
       } else {
-        // Mostramos un mensaje de error
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Correo o contraseña incorrectos')),
-        );
+        // Mostramos notificación en la esquina superior izquierda
+        _showNotification('Correo o contraseña incorrectos');
       }
     }
   }
 
   void _recoverPassword() {
-    // Muestra un simple SnackBar simulando la recuperación
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Funcionalidad de recuperación no implementada'),
-      ),
-    );
+    // Muestra una notificación en la esquina superior izquierda
+    _showNotification('Funcionalidad de recuperación no implementada');
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Un fondo con color degradado similar
+      // Fondo degradado similar al de las demás pantallas
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -112,9 +139,16 @@ class _LoginPageState extends State<LoginPage> {
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Email',
-                          prefixIcon: Icon(Icons.email),
+                          prefixIcon: const Icon(Icons.email),
+                          errorStyle: const TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                         validator: _validateEmail,
                       ),
@@ -123,9 +157,16 @@ class _LoginPageState extends State<LoginPage> {
                       TextFormField(
                         controller: _passwordController,
                         obscureText: true,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Contraseña',
-                          prefixIcon: Icon(Icons.lock),
+                          prefixIcon: const Icon(Icons.lock),
+                          errorStyle: const TextStyle(
+                            color: Colors.red,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
                         validator: _validatePassword,
                       ),

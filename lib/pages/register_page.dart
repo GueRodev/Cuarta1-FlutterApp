@@ -1,8 +1,28 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 import '../main.dart'; // Para acceder a registeredUsers
+import 'login_page.dart'; // Asegúrate de tener este archivo en lib/pages
+
+// CustomClipper que recorta en forma de círculo en base a un radio y centro
+class CircleClipper extends CustomClipper<Path> {
+  final double radius;
+  final Offset center;
+
+  CircleClipper({required this.radius, required this.center});
+
+  @override
+  Path getClip(Size size) {
+    return Path()..addOval(Rect.fromCircle(center: center, radius: radius));
+  }
+
+  @override
+  bool shouldReclip(covariant CircleClipper oldClipper) {
+    return radius != oldClipper.radius || center != oldClipper.center;
+  }
+}
 
 class RegisterPage extends StatefulWidget {
-  const RegisterPage({Key? key}) : super(key: key);
+  const RegisterPage({super.key});
 
   @override
   State<RegisterPage> createState() => _RegisterPageState();
@@ -19,11 +39,10 @@ class _RegisterPageState extends State<RegisterPage> {
     if (value == null || value.isEmpty) {
       return 'Ingresa tu correo electrónico';
     }
-    final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+    final emailRegex = RegExp(r'^[\w\.-]+@[a-zA-Z0-9]{2,}(\.[a-zA-Z]{2,})+$');
     if (!emailRegex.hasMatch(value)) {
       return 'Formato de correo inválido';
     }
-    // También podríamos verificar si el usuario ya existe
     if (registeredUsers.containsKey(value)) {
       return 'Este correo ya está registrado';
     }
@@ -34,9 +53,12 @@ class _RegisterPageState extends State<RegisterPage> {
     if (value == null || value.isEmpty) {
       return 'Ingresa tu número de teléfono';
     }
-    // Ejemplo simple: verificar longitud mínima
     if (value.length < 7) {
       return 'El número de teléfono es muy corto';
+    }
+    final phoneRegex = RegExp(r'^\d+$');
+    if (!phoneRegex.hasMatch(value)) {
+      return 'El número de teléfono solo puede contener números';
     }
     return null;
   }
@@ -51,24 +73,79 @@ class _RegisterPageState extends State<RegisterPage> {
     return null;
   }
 
-  void _register() {
-    if (_formKey.currentState!.validate()) {
-      final email = _emailController.text.trim();
-      final password = _passwordController.text.trim();
+  /// Muestra una notificación en la esquina superior derecha y devuelve el OverlayEntry
+  OverlayEntry _showNotification(String message) {
+    // Simplemente usamos Overlay.of(context) sin la verificación de nulo.
+    final overlay = Overlay.of(context);
 
-      // Guardamos el nuevo usuario en nuestro mapa local
-      registeredUsers[email] = password;
+    final overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        top: 40,
+        right: 20,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.black.withAlpha(204), // ~80% de opacidad
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              message,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+            ),
+          ),
+        ),
+      ),
+    );
 
-      // Podrías guardar también el teléfono en otra estructura si deseas.
+    overlay.insert(overlayEntry);
+    return overlayEntry;
+  }
 
-      // Mostramos mensaje de éxito
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Usuario $email registrado con éxito')),
-      );
+  /// Con async/await para evitar warnings de 'use_build_context_synchronously'
+  Future<void> _register() async {
+    if (!_formKey.currentState!.validate()) return;
 
-      // Después de registrar, podríamos navegar al Login
-      Navigator.pushNamed(context, '/login');
-    }
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    registeredUsers[email] = password;
+
+    // Mostramos la notificación y guardamos el OverlayEntry para poder removerlo
+    final notification = _showNotification('Usuario $email registrado con éxito');
+
+    // Esperamos 1 segundo antes de iniciar la transición
+    await Future.delayed(const Duration(seconds: 1));
+    if (!mounted) return;
+
+    // Removemos la notificación antes de la transición
+    notification.remove();
+    if (!mounted) return;
+
+    // Iniciamos la transición de 1s con efecto de bola blanca
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        transitionDuration: const Duration(seconds: 1),
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            const LoginPage(),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          // Obtenemos el tamaño de la pantalla y definimos el centro
+          final size = MediaQuery.of(context).size;
+          final center = Offset(size.width / 2, size.height / 2);
+          // Calculamos el radio máximo que cubre la pantalla
+          final maxRadius = 0.5 *
+              sqrt(size.width * size.width + size.height * size.height);
+          // Animamos el radio de 0 al máximo
+          final radius =
+              Tween<double>(begin: 0.0, end: maxRadius).evaluate(animation);
+
+          return ClipPath(
+            clipper: CircleClipper(radius: radius, center: center),
+            child: child,
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -108,7 +185,6 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      // Campo de email
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
@@ -119,7 +195,6 @@ class _RegisterPageState extends State<RegisterPage> {
                         validator: _validateEmail,
                       ),
                       const SizedBox(height: 10),
-                      // Campo de teléfono (opcional)
                       TextFormField(
                         controller: _phoneController,
                         keyboardType: TextInputType.phone,
@@ -130,7 +205,6 @@ class _RegisterPageState extends State<RegisterPage> {
                         validator: _validatePhone,
                       ),
                       const SizedBox(height: 10),
-                      // Campo de contraseña
                       TextFormField(
                         controller: _passwordController,
                         obscureText: true,
@@ -141,7 +215,6 @@ class _RegisterPageState extends State<RegisterPage> {
                         validator: _validatePassword,
                       ),
                       const SizedBox(height: 20),
-                      // Botón de registro
                       ElevatedButton(
                         onPressed: _register,
                         style: ElevatedButton.styleFrom(
@@ -172,3 +245,4 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 }
+

@@ -3,6 +3,9 @@ import 'pages/starter_page.dart';
 import 'pages/login_page.dart';
 import 'pages/register_page.dart';
 import 'pages/welcome_page.dart';
+import 'pages/dashboard_page.dart';
+
+
 
 // Simularemos un "backend" con un mapa de usuarios registrados.
 Map<String, String> registeredUsers = {
@@ -33,6 +36,7 @@ class MyApp extends StatelessWidget {
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),
         '/welcome': (context) => const WelcomePage(),
+        '/dashboard': (context) => const DashboardPage(),
       },
     );
   }
